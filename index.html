@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="ru">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css">
+    <title>Chat</title>
+    <link rel="shortcut icon"
+        href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAMAAAAoLQ9TAAAAXVBMVEX/wMv2ucTus70AAADytsH0uMLgqbIGBQXor7kmHR4eFxjkrLa2iZFgSExcRUkOCwu8jpZOOz6WcXeGZWtwVFlCMjVWQUSgeH+KaG48LTCsgol2WV7GlZ4WERLWoapf9H9pAAAAhklEQVQYlWWP2xKCMAxEk97SktYCVURF//8zKb3IOO5bzmQ3WZiMUBqLtBK8gIEfWRDnkBAAv0Dc1/hQFdiQgZdZzwKso/AyoM17rZaNJA1jXvpAy/BDjVEd9GDnOzh2NxcljRXMkRHM9UKOC2gHAQJXi75Rmm37r1gwne/jf7mJe/ujPy87S1oESGvyoHcAAAAASUVORK5CYII="
+        type="image/x-icon">
+    <style>
+        .msg {
+            border-radius: 10px;
+            padding: 10px;
+            /* display: inline-block; */
+            background: #6272a4;
+            color: #f8f8ed;
+            width: fit-content;
+            margin-top: 10px;
+            float: left;
+        }
+        .mymsg {
+            float: right;
+        }
+
+        #allMessages {
+            border: 1px solid grey;
+            height: 700px;
+            padding: 7px;
+            background: #282a36;
+            flex-direction: column;
+            display: flex;
+            overflow-y: auto;
+        }
+        #messForm div {
+            display: flex;
+            justify-content: space-between;
+        }
+
+        #messForm input {
+            width: 70%;
+        }
+
+        body>div {
+            margin-top: 30px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container justify-content-center">
+        <div class="row justify-content-center mb-10">
+        </div>
+        <div class="row justify-content-center">
+            <div class="col-md-6">
+                <div id="allMessages"></div>
+                <form id="messForm">
+                    <input type="text" name="name" id="name" placeholder="Введите имя" class="form-control">
+                    <br>
+                    <div>
+                        <input formaction="" name="message" id="message" class="form-control" placeholder="Введите сообщение">
+
+                        <button type="submit" class="btn btn-danger">Отправить</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js"></script>
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        $(function () {
+            const socket = io.connect();
+            const $form = $('#messForm');
+            const $textarea = $('#message');
+            const $all_masages = $('#allMessages');
+            const $name = $('#name');
+            let value = +localStorage.getItem('valueMess') + 1;
+            $textarea.attr('disabled', true);
+
+            if (value > 1) {
+                for (let i = 0; i < value; i++) {
+                    const div = document.createElement('div');
+                    div.classList.add('msg');
+                    div.innerHTML = localStorage.getItem(`message[${i}]`);
+                    $all_masages.append(div);
+                }
+            }
+
+
+            if (!(localStorage.getItem('name') === null)) {
+                $name.css('display', 'none');
+                $textarea.attr('disabled', false);
+            }
+
+            $form.submit(function (e) {
+                e.preventDefault();
+                if (!($name.val() === '')) {
+
+                    socket.emit('send mess', { msg: `Попривествуем пользователя ${$name.val()}` });
+                    localStorage.setItem('name', $name.val());
+                    const localName = localStorage.getItem('name');
+                    $textarea.val('');
+                    $name.fadeOut('slow', function () {
+                        $name.css('display', 'none');
+                        location.reload();
+
+                    });
+                    $textarea.attr('disabled', false);
+                }
+
+                if ($name.css('display', 'none')) {
+                    socket.emit('send mess', { name: localStorage.getItem('name'), msg: $textarea.val() });
+                    if ($textarea.val() == '/online') {
+                        socket.emit('online status');
+                    }
+                    $textarea.val('');
+
+                }
+            })
+            $all_masages.stop().animate({ scrollTop: $all_masages[0].scrollHeight }, 500);
+
+            socket.on('saveMessages', function () {
+                let len = $('.msg');
+                for (let i = 0; i < len.length; i++) {
+                    localStorage.setItem(`message[${i}]`, len[i].innerHTML);
+                    localStorage.setItem('valueMess', i);
+                    len = $('.msg');
+                }
+
+            })
+
+            socket.on('add mess', function (data) {
+                $all_masages.stop().animate({ scrollTop: $all_masages[0].scrollHeight }, 1000);
+                if (!data.name) {
+                    $all_masages.append(`<div class="msg">${data.msg}</div>`);
+                } else {
+                    $all_masages.append(`<div class="msg">${data.name}: ${data.msg}</div>`);
+                }
+
+
+                const sound = document.createElement('audio');
+                sound.src = 'sound.mp3';
+                sound.setAttribute('autoplay', 'autoplay')
+                document.body.append(sound);
+                setTimeout(function () {
+                    sound.remove();
+                }, 500);
+            });
+
+            socket.on('add online status', function (data) {
+                $all_masages.append(`<div class="msg">В онлайне: ${data.val}</div>`);
+            })
+        })
+    </script>
+</body>
+
+</html>
